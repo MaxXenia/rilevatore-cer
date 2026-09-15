@@ -6,9 +6,14 @@ import time
 # 1. Configurazione della pagina
 st.set_page_config(page_title="Rilevatore CER", page_icon="♻️", layout="centered")
 
-# 2. INIEZIONE CSS PER ESTETICA E TESTO PIÙ GRANDE SU MOBILE
+# 2. INIEZIONE CSS PER ESTETICA, SFONDO VERDE E TESTO SU MOBILE
 st.markdown("""
 <style>
+    /* Colore di sfondo verde sfumato per l'intera app */
+    .stApp {
+        background: linear-gradient(to bottom, #e8f5e9 0%, #f6fdf8 100%);
+    }
+
     /* Ingrandisce il testo generale per una migliore lettura sul cellulare */
     p, li, .stMarkdown, .stText {
         font-size: 1.2rem !important;
@@ -20,6 +25,13 @@ st.markdown("""
         font-weight: bold;
         font-size: 1.2rem !important;
         padding: 0.6rem 1rem;
+        background-color: #2e7d32; /* Verde scuro per il pulsante */
+        color: white;
+        border: none;
+    }
+    .stButton > button:hover {
+        background-color: #1b5e20; /* Verde ancora più scuro al passaggio del dito/mouse */
+        color: white;
     }
     
     /* Ingrandisce i titoli delle schede (Fotocamera / Galleria) */
@@ -28,11 +40,12 @@ st.markdown("""
         font-weight: 600;
     }
     
-    /* Rende il riquadro del risultato più elegante */
+    /* Rende il riquadro del risultato bianco, con bordi arrotondati e ombra */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         border-radius: 15px !important;
-        background-color: #f8f9fa;
-        border: 2px solid #e0e0e0;
+        background-color: #ffffff; /* Sfondo bianco per staccare dal verde */
+        border: 2px solid #c8e6c9; /* Bordo verdino */
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05); /* Leggera ombra 3D */
     }
 </style>
 """, unsafe_allow_html=True)
@@ -53,7 +66,7 @@ with tab2:
 
 immagine_input = foto_scattata if foto_scattata else foto_caricata
 
-# 3. INTERFACCIA DI ANALISI CON PULSANTE E LOGICA DI RETRY AUTOMATICA
+# 3. INTERFACCIA DI ANALISI CON LOGICA DI RETRY AUTOMATICA
 if immagine_input is not None:
     img = Image.open(immagine_input)
     st.image(img, caption="Immagine acquisita", use_container_width=True)
@@ -64,16 +77,14 @@ if immagine_input is not None:
     Specifica se il codice è potenzialmente pericoloso (asteriscato). Sii conciso ed elenca in modo chiaro.
     """
     
-    # Aggiungiamo un pulsante per dare all'utente il controllo (evita chiamate inutili all'API)
     if st.button("🔍 Analizza Rifiuto", type="primary", use_container_width=True):
         
-        status_text = st.empty() # Spazio per i messaggi di caricamento
+        status_text = st.empty()
         progress_bar = st.progress(0)
         
         risultato = None
         max_tentativi = 3
         
-        # Ciclo di salvataggio: riprova fino a 3 volte in caso di server occupati
         for tentativo in range(max_tentativi):
             try:
                 status_text.info(f"⏳ Analisi in corso... (Tentativo {tentativo + 1} di {max_tentativi})")
@@ -84,14 +95,13 @@ if immagine_input is not None:
                     contents=[img, prompt]
                 )
                 risultato = response.text
-                break # Se l'analisi riesce, interrompe il ciclo e prosegue
+                break
                 
             except Exception as e:
-                # Controlla se l'errore è dovuto a server sovraccarichi (503) o troppe richieste (429)
                 if "503" in str(e) or "429" in str(e) or "unavailable" in str(e).lower():
                     if tentativo < max_tentativi - 1:
                         status_text.warning("⚠️ Server momentaneamente occupati. Attendo 3 secondi e riprovo in automatico...")
-                        time.sleep(3) # Pausa di 3 secondi prima del prossimo tentativo
+                        time.sleep(3)
                     else:
                         status_text.empty()
                         st.error("I server di Google sono troppo congestionati in questo momento. Riprova tra qualche minuto.")
@@ -100,16 +110,22 @@ if immagine_input is not None:
                     st.error(f"Errore imprevisto durante l'analisi: {e}")
                     break
         
-        # Pulizia della barra di caricamento
         progress_bar.empty()
         
-        # Se l'analisi è andata a buon fine, stampa il risultato
         if risultato:
             status_text.success("✅ Analisi completata con successo!")
             st.markdown("### 📋 Risultato Classificazione:")
             
             with st.container(border=True):
                 st.write(risultato)
-                
+
+# 4. FOOTER E FIRMA
 st.markdown("---")
 st.caption("⚠️ **Nota tecnica:** L'assegnazione definitiva del codice CER e la verifica della pericolosità richiedono l'applicazione delle procedure previste dal D.Lgs. 152/2006.")
+
+st.markdown(
+    "<p style='text-align: center; color: #7f8c8d; font-size: 14px; font-style: italic; margin-top: 20px;'>"
+    "Sviluppato da: Massimiliano Pontoriere"
+    "</p>", 
+    unsafe_allow_html=True
+)
